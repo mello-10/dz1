@@ -2,11 +2,14 @@
 
 package com.example.dz1
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -30,6 +33,13 @@ class MainViewModel : ViewModel() {
         )
     )
     val state: StateFlow<MainViewState> = _state
+
+    private val _importResultFlow = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val importResultFlow: SharedFlow<String> = _importResultFlow
+
+    private val _shareFileFlow = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val shareFileFlow: SharedFlow<String> = _shareFileFlow
+
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -77,12 +87,51 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun createNote(){
+    fun createNote() {
         viewModelScope.launch {
             val note = Note(title = "", body = "", id = Uuid.random())
             _state.emit(state.value.copy(openedNote = note))
         }
     }
+
+    fun importNotesFromUri(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val content = context.contentResolver.openInputStream(uri)?.bufferedReader()
+                    ?.use { it.readText() }
+                    ?: throw IllegalStateException("Cannot open input stream")
+
+                val importedNotes: List<Note> = Json.decodeFromString(content)
+
+                val file = context.filesDir.resolve("notes.json")
+                val outContent = Json.encodeToString(importedNotes)
+                file.writeText(outContent)
+
+                _state.emit(state.value.copy(notes = importedNotes))
+
+                _importResultFlow.emit("Импорт успешно завершён: ${importedNotes.size} заметок")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "importNotesFromUri failed", e)
+                _importResultFlow.emit("Ошибка импорта: ${e.message ?: e::class.simpleName}")
+            }
+        }
+    }
+
+
+    fun exportNotes() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val notesToExport = state.value.notes
+                val content = Json.encodeToString(notesToExport)
+                val file = context.filesDir.resolve("notes.json")
+                file.writeText(content)
+                _shareFileFlow.emit(file.name)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "exportNotes failed", e)
+            }
+        }
+    }
+
 }
 
 val testNotes = listOf(

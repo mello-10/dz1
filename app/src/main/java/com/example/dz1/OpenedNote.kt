@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,8 +22,8 @@ import kotlin.uuid.ExperimentalUuidApi
 
 @Composable
 fun EditingNote(note: Note, modifier: Modifier, onSave: (Note) -> Unit) {
-    var newTitle by remember(note) { mutableStateOf(note.title) }
-    var newBody by remember(note) { mutableStateOf(note.body) }
+    var newTitle by rememberSaveable(note) { mutableStateOf(note.title) }
+    var newBody by rememberSaveable(note) { mutableStateOf(note.body) }
     Column(modifier = modifier.fillMaxSize()) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
